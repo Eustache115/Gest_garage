@@ -882,7 +882,7 @@ def authenticate_user(db: Session, email: str, password: str):
         print(f"DEBUG LOGIN: Pas de mot de passe défini pour {clean_email}")
         return False
         
-    if not auth.verify_password(password, user.mot_de_passe):
+    if not auth.verify_password(clean_password, user.mot_de_passe):
         print(f"DEBUG LOGIN: Mot de passe incorrect pour {clean_email}")
         return False
         
