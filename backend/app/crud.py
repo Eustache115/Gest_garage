@@ -875,17 +875,21 @@ def authenticate_user(db: Session, email: str, password: str):
     
     user = get_utilisateur_by_email(db, clean_email)
     if not user:
-        print(f"DEBUG LOGIN: Utilisateur non trouvé pour {clean_email}")
+        print(f"DEBUG AUTH: Aucun utilisateur actif trouvé pour l'email '{clean_email}'")
         return False
         
     if not user.mot_de_passe:
-        print(f"DEBUG LOGIN: Pas de mot de passe défini pour {clean_email}")
+        print(f"DEBUG AUTH: L'utilisateur '{clean_email}' n'a pas de mot de passe défini.")
         return False
         
-    if not auth.verify_password(clean_password, user.mot_de_passe):
-        print(f"DEBUG LOGIN: Mot de passe incorrect pour {clean_email}")
+    is_valid = auth.verify_password(clean_password, user.mot_de_passe)
+    if not is_valid:
+        print(f"DEBUG AUTH: Échec de vérification du mot de passe pour '{clean_email}'.")
+        print(f"DEBUG AUTH: Mot de passe fourni: '{clean_password}'")
+        print(f"DEBUG AUTH: Hash en base: '{user.mot_de_passe[:20]}...'")
         return False
         
+    print(f"DEBUG AUTH: Connexion réussie pour '{clean_email}'")
     return user
 
 def get_avis(db: Session):
