@@ -2,8 +2,9 @@ import axios from "axios";
 import { toast } from "react-hot-toast";
 import { cacheIncomingData, getLocalData, enqueueMutation } from "./offlineSync.js";
 
+const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://127.0.0.1:8000",
+  baseURL: import.meta.env.VITE_API_URL || (isLocal ? "http://127.0.0.1:8000" : "/api"),
 });
 
 // Intercepteur : injecter le token JWT dans chaque requête
