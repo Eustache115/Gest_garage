@@ -1,0 +1,28 @@
+- [x] Update Backend Models (`models.py`)
+    - [x] Rename `Utilisateur.nom` to `nom_utilisateur`
+    - [x] Rename `Utilisateur.prenom` to `prenom_utilisateur`
+    - [x] Rename `Piece.nom` to `nom_piece`
+- [x] Update Backend Schemas (`schemas.py`)
+    - [x] Update User-related schemas
+    - [x] Update Piece-related schemas
+    - [x] Update enriched response schemas (client_nom -> client_nom_utilisateur, etc.)
+- [x] Update Backend CRUD (`crud.py`)
+    - [x] Update user creation/update logic
+    - [x] Update piece creation/update logic
+- [x] Update Backend API/Logic
+    - [x] `main.py`
+    - [x] `auth.py` (No changes needed)
+    - [x] `email_utils.py` (No changes needed, callers updated)
+- [x] Update Database Seed/Setup
+    - [x] `seed.py`
+    - [x] Reset and seed the database
+- [/] Update Frontend
+    - [ ] Update `AuthContext.jsx` and `Layout.jsx`
+    - [ ] Update `Profil.jsx`
+    - [ ] Update `Clients.jsx`
+    - [ ] Update `Utilisateurs.jsx`
+    - [ ] Update `Stock.jsx`
+    - [ ] Update page components with enriched data (`Devis.jsx`, `Facturation.jsx`, etc.)
+- [ ] Verification
+    - [ ] Test API responses
+    - [ ] Verify frontend rendering and forms

@@ -1,0 +1,19 @@
+/* Clean slate for Tailwind CSS */
+@import "tailwindcss";
+
+/* Vous pouvez ajouter vos styles globaux ici */
+:root {
+  --primary: #1E3A5F;
+  --secondary: #60A5FA;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* Empêche le scroll sur le body principal car le main de Layout.jsx s'en charge */
+}
+
+#root {
+  width: 100%;
+  height: 100vh;
+}
