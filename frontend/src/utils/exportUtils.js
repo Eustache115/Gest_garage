@@ -229,8 +229,14 @@ export async function downloadDocumentPDF(type, id, reference) {
         if (response.data.type !== 'application/pdf') {
             // Si le serveur a renvoyé du JSON (erreur) au lieu d'un PDF
             const text = await response.data.text();
-            const errorObj = JSON.parse(text);
-            throw new Error(errorObj.detail || "Le serveur n'a pas renvoyé un fichier PDF valide.");
+            let detail = "Le serveur n'a pas renvoyé un fichier PDF valide.";
+            try {
+                const errorObj = JSON.parse(text);
+                detail = errorObj.detail || detail;
+            } catch {
+                detail = text || detail;
+            }
+            throw new Error(detail);
         }
 
         const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
@@ -246,7 +252,12 @@ export async function downloadDocumentPDF(type, id, reference) {
         let message = "Erreur lors du téléchargement.";
         if (error.response?.data instanceof Blob) {
             const text = await error.response.data.text();
-            try { message = JSON.parse(text).detail; } catch { message = text; }
+            try { 
+                const parsed = JSON.parse(text);
+                message = parsed.detail || text; 
+            } catch { 
+                message = text; 
+            }
         } else if (error.message) {
             message = error.message;
         }
