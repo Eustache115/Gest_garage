@@ -13,10 +13,13 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     try {
       const saved = localStorage.getItem("user");
-      if (!saved || saved === "undefined") return null;
+      if (!saved || saved === "undefined" || saved.startsWith("<")) {
+        if (saved) localStorage.removeItem("user"); // Nettoie la donnée corrompue
+        return null;
+      }
       return JSON.parse(saved);
     } catch (error) {
-      console.warn("Erreur lors du parsing de l'utilisateur depuis localStorage:", error);
+      localStorage.removeItem("user"); // Nettoie en cas d'erreur de parsing
       return null;
     }
   });
