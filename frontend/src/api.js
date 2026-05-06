@@ -2,9 +2,9 @@ import axios from "axios";
 import { toast } from "react-hot-toast";
 import { cacheIncomingData, getLocalData, enqueueMutation } from "./offlineSync.js";
 
-const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+// Suppression radicale de toute adresse locale pour forcer Vercel à utiliser /api
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || (isLocal ? "http://127.0.0.1:8000" : "/api"),
+  baseURL: "/api",
 });
 
 // Intercepteur : injecter le token JWT dans chaque requête
@@ -16,84 +16,53 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Intercepteur : rediriger vers /login si 401 et gérer le cache hors-ligne
+// Intercepteur : Gestion des erreurs et du mode hors-ligne
 api.interceptors.response.use(
-  async (response) => {
-    // Si la requête est en succès, on met en cache pour le mode hors-ligne
-    // cacheIncomingData normalise l'URL automatiquement (retire baseURL, query params)
-    const isDocument = response.config.url.includes('/documents/');
-    if (response.config.method.toUpperCase() === 'GET' && !isDocument) {
-      await cacheIncomingData(response.config.url, response.data);
+  (response) => {
+    // Si on est en ligne, on met en cache les données reçues (GET)
+    if (response.config.method === "get" && !response.config._isBackgroundSync) {
+      cacheIncomingData(response.config.url, response.data);
     }
     return response;
   },
   async (error) => {
-      // ── Gestion de la perte de réseau (Mode Hors-Ligne) ──
-      // Déclenché quand le serveur est inaccessible (pas de réponse HTTP)
-      if (!error.response && error.request) {
-          const method = error.config.method.toUpperCase();
-          console.log("Mode Hors-Ligne : Pas de réponse serveur pour", error.config.url);
-          
-          if (method === 'GET') {
-              // Renvoie les données en cache local si disponible, sinon un tableau vide
-              const localData = await getLocalData(error.config.url);
-              console.log("Mode Hors-Ligne : Données locales trouvées =", localData ? "OUI" : "NON", "pour", error.config.url);
-              return Promise.resolve({ data: localData !== null ? localData : [], _isOfflineCache: true });
-          } 
-          else if (!error.config._isBackgroundSync) {
-              // C'est une mutation (POST, PUT, DELETE) initiée par l'utilisateur hors-ligne
-              console.log("Mode Hors-Ligne : Action sauvegardée dans la file d'attente", error.config.url);
-              await enqueueMutation(error.config);
-              toast.success("Action sauvegardée localement (sera synchronisée au retour d'internet)");
-              // On simule une réussite pour ne pas bloquer l'interface
-              return Promise.resolve({ data: {}, _local_queued: true });
-          }
-          
-          if (!error.config._isBackgroundSync) {
-            toast.error("Impossible de contacter le serveur. Vérifiez votre connexion.");
-          }
-          return Promise.reject(error);
-      }
+    const { config, response } = error;
+    const isGet = config?.method === "get";
+    const isAuthError = response?.status === 401;
 
-      // ── Erreur 401 : Token expiré ou invalide ──
-      // IMPORTANT : Si on est hors-ligne, on tente de servir depuis le cache
-      // au lieu de rediriger vers /login
-      if (error.response && error.response.status === 401) {
-          if (!navigator.onLine || error.config._forceOffline) {
-              // Hors-ligne : on essaie le cache local
-              const method = error.config.method?.toUpperCase();
-              if (method === 'GET') {
-                  const localData = await getLocalData(error.config.url);
-                  if (localData !== null) {
-                      console.log("Mode Hors-Ligne (401) : Données locales servies pour", error.config.url);
-                      return Promise.resolve({ data: localData, _isOfflineCache: true });
-                  }
-              }
-          }
-          // En ligne : déconnexion normale
-          localStorage.removeItem("access_token");
-          localStorage.removeItem("user");
-          if (window.location.pathname !== "/login") {
-              window.location.href = "/login";
-          }
-          return Promise.reject(error);
-      }
+    // CAS 1 : Erreur de connexion (Serveur injoignable ou pas d'internet)
+    if (!response || error.code === "ERR_NETWORK" || error.code === "ECONNABORTED") {
+      console.warn(`Mode Hors-Ligne : Pas de réponse serveur pour ${config.url}`);
 
-      // Erreurs standard du serveur (5xx, etc.)
-      if (error.response) {
-        if (!error.config._isBackgroundSync) {
-          let msg = error.response.data?.detail || "Une erreur est survenue sur le serveur.";
-          if (typeof msg !== 'string') {
-            msg = JSON.stringify(msg);
-          }
-          toast.error(msg);
+      if (isGet) {
+        const cachedData = await getLocalData(config.url);
+        if (cachedData) {
+          toast.success("Affichage des données locales (Hors-ligne)");
+          return { data: cachedData, config, status: 200, offline: true };
         }
       } else {
-        if (!error.config?._isBackgroundSync) {
-          toast.error("Une erreur inconnue s'est produite.");
-        }
+        // Pour les POST/PUT/DELETE, on met en file d'attente pour plus tard
+        await enqueueMutation(config.method, config.url, config.data);
+        toast.error("Action sauvegardée (sera synchronisée au retour de la connexion)");
+        return Promise.resolve({ data: { message: "Action mise en attente" }, status: 202 });
       }
-      return Promise.reject(error);
+    }
+
+    // CAS 2 : Erreur 401 (Session expirée)
+    if (isAuthError) {
+      // Si on a des données en cache, on peut quand même rester sur la page au lieu de déconnecter brutalement
+      const cachedData = await getLocalData(config.url);
+      if (isGet && cachedData) {
+          return { data: cachedData, config, status: 200, offline: true };
+      }
+      
+      // Sinon redirection login
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("user");
+      // window.location.href = "/login";
+    }
+
+    return Promise.reject(error);
   }
 );
 
