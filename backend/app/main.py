@@ -15,7 +15,7 @@ from .email_utils import envoyer_email_creation_compte, envoyer_email_bienvenue,
 
 # Utilise get_db importé depuis .database
 
-app = FastAPI(title="Garage Management API")
+app = FastAPI(title="Garage Management API", root_path="/api")
 
 app.add_middleware(
     CORSMiddleware,
@@ -34,6 +34,15 @@ def sqlalchemy_integrity_error_handler(request: Request, exc: IntegrityError):
 
 
 # ─── Root ─────────────────────────────────────────────
+@app.get("/db-check")
+def db_check(db: Session = Depends(get_db)):
+    try:
+        from sqlalchemy import text
+        db.execute(text("SELECT 1"))
+        return {"status": "ok", "message": "Database connected successfully!"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 @app.get("/")
 def root():
     return {"message": "Garage Backend Running"}
