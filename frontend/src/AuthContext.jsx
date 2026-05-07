@@ -44,9 +44,10 @@ export function AuthProvider({ children }) {
     setUser(userData);
     
 // MAGIE HORS-LIGNE : Téléchargement EAGER (Préchargement) de la base de données
-    if (navigator.onLine) {
+    if (navigator.onLine && userData) {
         setTimeout(async () => {
             try {
+                if (!userData) return;
                 const role = userData.role?.toLowerCase();
                 const userId = userData.id_utilisateur;
 

@@ -1,24 +1,42 @@
 import sys
 import os
 
-# Trouver le chemin racine du projet
-root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-backend_path = os.path.join(root_path, 'backend')
+# Configuration des chemins
+current_dir = os.path.dirname(os.path.abspath(__file__))
+root_dir = os.path.abspath(os.path.join(current_dir, '..'))
+backend_dir = os.path.join(root_dir, 'backend')
 
-if backend_path not in sys.path:
-    sys.path.append(backend_path)
+if root_dir not in sys.path:
+    sys.path.insert(0, root_dir)
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
 
 try:
-    from app.main import app
-except ImportError as e:
+    # Tentative d'importation de l'application réelle
+    from backend.app.main import app
+except Exception as e:
+    # En cas d'erreur, on crée une application FastAPI minimale
+    # Cela évite que Vercel ne dise "Could not find app"
     from fastapi import FastAPI
     app = FastAPI()
+    
     @app.get("/api/health")
     def health():
         return {
-            "status": "error", 
-            "error": str(e),
-            "root": root_path,
-            "backend": backend_path,
-            "contents": os.listdir(backend_path) if os.path.exists(backend_path) else "not found"
+            "status": "error",
+            "message": "Erreur lors de l'importation du backend",
+            "error": str(e)
         }
+    
+    @app.get("/api/{path:path}")
+    def catch_all(path: str):
+        return {
+            "error": "Backend import failed",
+            "details": str(e),
+            "path": path
+        }
+
+# Exports requis par Vercel
+app = app
+handler = app
+application = app

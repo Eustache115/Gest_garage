@@ -5,15 +5,7 @@
     <link rel="icon" type="image/png" href="/src/logonouveau.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>E-GARAGE</title>
-    <script>
-      // SCRIPT DE NETTOYAGE D'URGENCE (TEMPORAIRE)
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(regs => {
-          for(let reg of regs) reg.unregister();
-          if(regs.length > 0) console.log("Ancien Service Worker nettoyé !");
-        });
-      }
-    </script>
+
   </head>
   <body>
     <div id="root"></div>

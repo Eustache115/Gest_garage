@@ -41,10 +41,17 @@ api.interceptors.response.use(
           return { data: cachedData, config, status: 200, offline: true };
         }
       } else {
-        // Pour les POST/PUT/DELETE, on met en file d'attente pour plus tard
-        await enqueueMutation(config.method, config.url, config.data);
-        toast.error("Action sauvegardée (sera synchronisée au retour de la connexion)");
-        return Promise.resolve({ data: { message: "Action mise en attente" }, status: 202 });
+        // Ne PAS mettre en file d'attente les requêtes d'authentification
+        const isAuthPath = config.url?.includes("/login") || config.url?.includes("/auth/");
+        
+        if (!isAuthPath) {
+          // Pour les POST/PUT/DELETE, on met en file d'attente pour plus tard
+          await enqueueMutation(config);
+          toast.error("Action sauvegardée (sera synchronisée au retour de la connexion)");
+          return Promise.resolve({ data: { message: "Action mise en attente" }, status: 202 });
+        } else {
+          toast.error("Connexion impossible en mode hors-ligne");
+        }
       }
     }
 

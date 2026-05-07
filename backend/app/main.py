@@ -17,6 +17,11 @@ from .email_utils import envoyer_email_creation_compte, envoyer_email_bienvenue,
 
 app = FastAPI(title="Garage Management API", root_path="/api")
 
+@app.on_event("startup")
+def on_startup():
+    # Création automatique des tables si elles n'existent pas
+    Base.metadata.create_all(bind=engine)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -44,8 +49,44 @@ def db_check(db: Session = Depends(get_db)):
         return {"status": "error", "message": str(e)}
 
 @app.get("/")
-def root():
-    return {"message": "Garage Backend Running"}
+def root(db: Session = Depends(get_db)):
+    try:
+        user_count = db.query(models.Utilisateur).count()
+        return {
+            "message": "Garage Backend Running",
+            "database_connected": True,
+            "user_count": user_count
+        }
+    except Exception as e:
+        return {
+            "message": "Garage Backend Running",
+            "database_connected": False,
+            "error": str(e)
+        }
+
+@app.get("/setup-admin")
+def setup_admin(db: Session = Depends(get_db)):
+    """Crée l'administrateur par défaut si aucun n'existe."""
+    existing = db.query(models.Administrateur).first()
+    if existing:
+        return {"message": "Admin already exists", "email": existing.email}
+    
+    try:
+        db_admin = models.Administrateur(
+            nom_utilisateur="Admin", 
+            prenom_utilisateur="Super", 
+            email="eustachehounfodji6@gmail.com",
+            telephone="0600000000", 
+            mot_de_passe=auth.get_password_hash("Eustache@05"), 
+            role="admin",
+            premiere_connexion=False
+        )
+        db.add(db_admin)
+        db.commit()
+        return {"message": "Admin created successfully", "email": db_admin.email, "password_hint": "Eustache@05"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ═══════════════════════════════════════════════════════

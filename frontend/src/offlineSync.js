@@ -138,9 +138,15 @@ export async function enqueueMutation(config) {
             try { requestData = JSON.parse(requestData); } catch { }
         }
 
+        // Normalisation de l'URL pour éviter le double "/api" lors de la re-tentative
+        let syncUrl = config.url || '';
+        if (syncUrl.startsWith('/api')) {
+            syncUrl = syncUrl.replace('/api', '');
+        }
+
         await db.sync_queue.add({
             method: config.method,
-            url: config.url,
+            url: syncUrl,
             data: requestData,
             timestamp: new Date().toISOString()
         });
@@ -149,8 +155,10 @@ export async function enqueueMutation(config) {
         // MISE À JOUR OPTIMISTE DU CACHE (affichage immédiat)
         // ─────────────────────────────────────────────────────
         try {
+            if (!config || !config.method) return;
+
             const method = config.method.toUpperCase();
-            const fullUrl = config.url;
+            const fullUrl = config.url || '';
 
             // ══ CAS SPÉCIAL : POST /devis/{id}/generer-facture ══
             // Hors-ligne : on marque le devis comme facturé et on crée
@@ -274,7 +282,15 @@ export async function processSyncQueue(api) {
         let syncedCount = 0;
 
         for (let item of queue) {
+            // Sécurité : ignorer les entrées corrompues (liées à d'anciens bugs)
+            if (!item.url || !item.method) {
+                console.warn("Action de synchronisation corrompue ignorée:", item);
+                await db.sync_queue.delete(item.id);
+                continue;
+            }
+
             try {
+                console.log(`Tentative de synchro: ${item.method} ${item.url}`);
                 await api.request({
                     method: item.method,
                     url: item.url,
@@ -284,7 +300,11 @@ export async function processSyncQueue(api) {
                 await db.sync_queue.delete(item.id);
                 syncedCount++;
             } catch (err) {
-                console.error("Erreur de synchronisation, annulation du reste du batch:", err);
+                const status = err.response ? err.response.status : 'réseau';
+                console.error(`Échec de synchronisation pour ${item.url} (Status: ${status}):`, err);
+                
+                // Si c'est une erreur 405 ou 404 sur une action de synchro, c'est peut-être une requête malformée
+                // on arrête quand même le batch pour éviter de corrompre les données suivantes qui pourraient dépendre de celle-ci.
                 break;
             }
         }

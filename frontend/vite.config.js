@@ -10,6 +10,16 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
+      workbox: {
+        // Ne pas intercepter les appels API
+        navigateFallbackDenylist: [/^\/api/],
+        runtimeCaching: [
+          {
+            urlPattern: /^\/api\/.*$/,
+            handler: 'NetworkOnly', // Forcer le réseau pour l'API (géré manuellement par offlineSync.js)
+          }
+        ]
+      },
       manifest: {
         name: 'Garage App',
         short_name: 'Garage',
